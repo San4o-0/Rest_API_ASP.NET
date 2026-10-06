@@ -1,18 +1,22 @@
 using Api.Dtos;
+using Application.Cars.Commands;
 using Application.Cars.Filters;
-using Application.Cars.Services.Abstract;
+using Application.Common.Interfaces.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
 
 [Route("cars")]
 [ApiController]
-public class CarsController(ICarService carService) : ControllerBase
+public class CarsController(
+    ISender sender,
+    ICarQueries carQueries) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<CarDto>>> GetCars(CancellationToken cancellationToken)
     {
-        var cars = await carService.GetCars(cancellationToken);
+        var cars = await carQueries.GetAll(cancellationToken);
         return cars.Select(CarDto.FromDomainModel).ToList();
     }
 
@@ -22,14 +26,14 @@ public class CarsController(ICarService carService) : ControllerBase
         CancellationToken cancellationToken)
     {
         var filter = new CarFilter(request.MinPrice, request.MaxPrice, request.MinYear, request.MaxYear);
-        var cars = await carService.SearchCars(filter, cancellationToken);
+        var cars = await carQueries.GetFiltered(filter, cancellationToken);
         return cars.Select(CarDto.FromDomainModel).ToList();
     }
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<CarDto>> GetCar(Guid id, CancellationToken cancellationToken)
     {
-        var car = await carService.GetCar(id, cancellationToken);
+        var car = await carQueries.GetById(id, cancellationToken);
         if (car is null)
         {
             return NotFound();
@@ -43,17 +47,19 @@ public class CarsController(ICarService carService) : ControllerBase
         [FromBody] CreateCarDto request,
         CancellationToken cancellationToken)
     {
+        var input = new CreateCarCommand
+        {
+            Vin = request.Vin,
+            Brand = request.Brand,
+            Model = request.Model,
+            Year = request.Year,
+            Price = request.Price,
+            FuelType = request.FuelType
+        };
+
         try
         {
-            var car = await carService.Add(
-                request.Vin,
-                request.Brand,
-                request.Model,
-                request.Year,
-                request.Price,
-                request.FuelType,
-                cancellationToken);
-
+            var car = await sender.Send(input, cancellationToken);
             var dto = CarDto.FromDomainModel(car);
             return CreatedAtAction(nameof(GetCar), new { id = dto.Id }, dto);
         }
@@ -69,19 +75,21 @@ public class CarsController(ICarService carService) : ControllerBase
         [FromBody] UpdateCarDto request,
         CancellationToken cancellationToken)
     {
+        var input = new UpdateCarCommand
+        {
+            CarId = id,
+            Vin = request.Vin,
+            Brand = request.Brand,
+            Model = request.Model,
+            Year = request.Year,
+            Price = request.Price,
+            FuelType = request.FuelType,
+            IsSold = request.IsSold
+        };
+
         try
         {
-            var car = await carService.Update(
-                id,
-                request.Vin,
-                request.Brand,
-                request.Model,
-                request.Year,
-                request.Price,
-                request.FuelType,
-                request.IsSold,
-                cancellationToken);
-
+            var car = await sender.Send(input, cancellationToken);
             if (car is null)
             {
                 return NotFound();
@@ -98,7 +106,12 @@ public class CarsController(ICarService carService) : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteCar(Guid id, CancellationToken cancellationToken)
     {
-        var deleted = await carService.Delete(id, cancellationToken);
+        var input = new DeleteCarCommand
+        {
+            CarId = id
+        };
+
+        var deleted = await sender.Send(input, cancellationToken);
         if (!deleted)
         {
             return NotFound();

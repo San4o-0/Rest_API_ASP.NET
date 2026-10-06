@@ -1,11 +1,12 @@
 using Application.Cars.Filters;
-using Application.Common.Interfaces;
+using Application.Common.Interfaces.Queries;
+using Application.Common.Interfaces.Repositories;
 using Domain.Cars;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence.Repositories;
 
-public class CarRepository(ApplicationDbContext context) : ICarRepository
+public class CarRepository(ApplicationDbContext context) : ICarRepository, ICarQueries
 {
     public async Task<IReadOnlyList<Car>> GetAll(CancellationToken cancellationToken)
     {

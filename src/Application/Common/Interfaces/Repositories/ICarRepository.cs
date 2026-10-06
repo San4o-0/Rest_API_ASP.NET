@@ -1,12 +1,9 @@
-using Application.Cars.Filters;
 using Domain.Cars;
 
-namespace Application.Common.Interfaces;
+namespace Application.Common.Interfaces.Repositories;
 
 public interface ICarRepository
 {
-    Task<IReadOnlyList<Car>> GetAll(CancellationToken cancellationToken);
-    Task<IReadOnlyList<Car>> GetFiltered(CarFilter filter, CancellationToken cancellationToken);
     Task<Car?> GetById(Guid id, CancellationToken cancellationToken);
     Task<Car?> GetByVin(string vin, CancellationToken cancellationToken);
     Task<Car> Add(Car car, CancellationToken cancellationToken);

@@ -19,11 +19,11 @@ public record CarDto(
 }
 
 public record CreateCarDto(
-    [Required, MaxLength(17)] string Vin,
-    [Required, MaxLength(255)] string Brand,
-    [Required, MaxLength(255)] string Model,
-    [Range(1900, 2100)] int Year,
-    [Range(0.01, 100_000_000)] decimal Price,
+    string Vin,
+    string Brand,
+    string Model,
+    int Year,
+    decimal Price,
     FuelType FuelType);
 
 public record CarFilterDto(
@@ -51,10 +51,10 @@ public record CarFilterDto(
 }
 
 public record UpdateCarDto(
-    [Required, MaxLength(17)] string Vin,
-    [Required, MaxLength(255)] string Brand,
-    [Required, MaxLength(255)] string Model,
-    [Range(1900, 2100)] int Year,
-    [Range(0.01, 100_000_000)] decimal Price,
+    string Vin,
+    string Brand,
+    string Model,
+    int Year,
+    decimal Price,
     FuelType FuelType,
     bool IsSold);

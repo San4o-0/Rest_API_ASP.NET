@@ -1,10 +1,12 @@
+using Api.Modules.Errors;
+
 namespace Api.Modules;
 
 public static class SetupModule
 {
     public static void SetupServices(this IServiceCollection services)
     {
-        services.AddControllers();
+        services.AddControllers(options => options.Filters.Add<ValidationExceptionFilter>());
         services.AddCors();
     }
 
