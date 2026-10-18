@@ -1,7 +1,9 @@
 using Api.Dtos;
+using Api.Modules.Errors;
 using Application.Cars.Commands;
 using Application.Cars.Filters;
 using Application.Common.Interfaces.Queries;
+using Domain.Cars;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -33,13 +35,11 @@ public class CarsController(
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<CarDto>> GetCar(Guid id, CancellationToken cancellationToken)
     {
-        var car = await carQueries.GetById(id, cancellationToken);
-        if (car is null)
-        {
-            return NotFound();
-        }
+        var car = await carQueries.GetById(new CarId(id), cancellationToken);
 
-        return CarDto.FromDomainModel(car);
+        return car.Match<ActionResult<CarDto>>(
+            c => CarDto.FromDomainModel(c),
+            () => NotFound());
     }
 
     [HttpPost]
@@ -57,16 +57,11 @@ public class CarsController(
             FuelType = request.FuelType
         };
 
-        try
-        {
-            var car = await sender.Send(input, cancellationToken);
-            var dto = CarDto.FromDomainModel(car);
-            return CreatedAtAction(nameof(GetCar), new { id = dto.Id }, dto);
-        }
-        catch (ArgumentException exception)
-        {
-            return Conflict(exception.Message);
-        }
+        var result = await sender.Send(input, cancellationToken);
+
+        return result.Match<ActionResult<CarDto>>(
+            c => CreatedAtAction(nameof(GetCar), new { id = c.Id.Value }, CarDto.FromDomainModel(c)),
+            e => e.ToObjectResult());
     }
 
     [HttpPut("{id:guid}")]
@@ -87,20 +82,11 @@ public class CarsController(
             IsSold = request.IsSold
         };
 
-        try
-        {
-            var car = await sender.Send(input, cancellationToken);
-            if (car is null)
-            {
-                return NotFound();
-            }
+        var result = await sender.Send(input, cancellationToken);
 
-            return CarDto.FromDomainModel(car);
-        }
-        catch (ArgumentException exception)
-        {
-            return Conflict(exception.Message);
-        }
+        return result.Match<ActionResult<CarDto>>(
+            c => CarDto.FromDomainModel(c),
+            e => e.ToObjectResult());
     }
 
     [HttpDelete("{id:guid}")]
@@ -111,12 +97,10 @@ public class CarsController(
             CarId = id
         };
 
-        var deleted = await sender.Send(input, cancellationToken);
-        if (!deleted)
-        {
-            return NotFound();
-        }
+        var result = await sender.Send(input, cancellationToken);
 
-        return NoContent();
+        return result.Match<IActionResult>(
+            _ => NoContent(),
+            e => e.ToObjectResult());
     }
 }

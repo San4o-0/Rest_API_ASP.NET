@@ -2,6 +2,7 @@ using Application.Cars.Filters;
 using Application.Common.Interfaces.Queries;
 using Application.Common.Interfaces.Repositories;
 using Domain.Cars;
+using LanguageExt;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence.Repositories;
@@ -40,14 +41,20 @@ public class CarRepository(ApplicationDbContext context) : ICarRepository, ICarQ
         return await query.ToListAsync(cancellationToken);
     }
 
-    public async Task<Car?> GetById(Guid id, CancellationToken cancellationToken)
+    public async Task<Option<Car>> GetById(CarId id, CancellationToken cancellationToken)
     {
-        return await context.Cars.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var entity = await context.Cars
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        return entity ?? Option<Car>.None;
     }
 
-    public async Task<Car?> GetByVin(string vin, CancellationToken cancellationToken)
+    public async Task<Option<Car>> GetByVin(string vin, CancellationToken cancellationToken)
     {
-        return await context.Cars.FirstOrDefaultAsync(x => x.Vin == vin, cancellationToken);
+        var entity = await context.Cars
+            .FirstOrDefaultAsync(x => x.Vin == vin, cancellationToken);
+
+        return entity ?? Option<Car>.None;
     }
 
     public async Task<Car> Add(Car car, CancellationToken cancellationToken)

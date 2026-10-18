@@ -2,7 +2,7 @@ namespace Domain.Cars;
 
 public class Car
 {
-    public Guid Id { get; }
+    public CarId Id { get; }
     public string Vin { get; private set; }
     public string Brand { get; private set; }
     public string Model { get; private set; }
@@ -13,7 +13,7 @@ public class Car
     public DateTime CreatedAt { get; }
 
     private Car(
-        Guid id,
+        CarId id,
         string vin,
         string brand,
         string model,
@@ -35,7 +35,7 @@ public class Car
     }
 
     public static Car New(
-        Guid id,
+        CarId id,
         string vin,
         string brand,
         string model,

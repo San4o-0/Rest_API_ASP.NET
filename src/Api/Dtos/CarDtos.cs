@@ -15,7 +15,7 @@ public record CarDto(
     DateTime CreatedAt)
 {
     public static CarDto FromDomainModel(Car car)
-        => new(car.Id, car.Vin, car.Brand, car.Model, car.Year, car.Price, car.FuelType, car.IsSold, car.CreatedAt);
+        => new(car.Id.Value, car.Vin, car.Brand, car.Model, car.Year, car.Price, car.FuelType, car.IsSold, car.CreatedAt);
 }
 
 public record CreateCarDto(

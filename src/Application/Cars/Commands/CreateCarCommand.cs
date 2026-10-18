@@ -1,10 +1,12 @@
+using Application.Cars.Exceptions;
 using Application.Common.Interfaces.Repositories;
 using Domain.Cars;
+using LanguageExt;
 using MediatR;
 
 namespace Application.Cars.Commands;
 
-public record CreateCarCommand : IRequest<Car>
+public record CreateCarCommand : IRequest<Either<CarException, Car>>
 {
     public required string Vin { get; init; }
     public required string Brand { get; init; }
@@ -15,25 +17,39 @@ public record CreateCarCommand : IRequest<Car>
 }
 
 public class CreateCarCommandHandler(ICarRepository carRepository)
-    : IRequestHandler<CreateCarCommand, Car>
+    : IRequestHandler<CreateCarCommand, Either<CarException, Car>>
 {
-    public async Task<Car> Handle(CreateCarCommand request, CancellationToken cancellationToken)
+    public async Task<Either<CarException, Car>> Handle(
+        CreateCarCommand request,
+        CancellationToken cancellationToken)
     {
         var existingCar = await carRepository.GetByVin(request.Vin, cancellationToken);
-        if (existingCar is not null)
+
+        return await existingCar.MatchAsync(
+            c => new CarAlreadyExistsException(c.Id),
+            () => CreateEntity(request, cancellationToken));
+    }
+
+    private async Task<Either<CarException, Car>> CreateEntity(
+        CreateCarCommand request,
+        CancellationToken cancellationToken)
+    {
+        try
         {
-            throw new ArgumentException($"Car with VIN '{request.Vin}' already exists");
+            var car = Car.New(
+                CarId.New(),
+                request.Vin,
+                request.Brand,
+                request.Model,
+                request.Year,
+                request.Price,
+                request.FuelType);
+
+            return await carRepository.Add(car, cancellationToken);
         }
-
-        var car = Car.New(
-            Guid.NewGuid(),
-            request.Vin,
-            request.Brand,
-            request.Model,
-            request.Year,
-            request.Price,
-            request.FuelType);
-
-        return await carRepository.Add(car, cancellationToken);
+        catch (Exception exception)
+        {
+            return new CarUnhandledException(CarId.Empty(), exception);
+        }
     }
 }

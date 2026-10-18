@@ -1,10 +1,13 @@
+using Application.Cars.Exceptions;
 using Application.Common.Interfaces.Repositories;
 using Domain.Cars;
+using LanguageExt;
 using MediatR;
+using Unit = LanguageExt.Unit;
 
 namespace Application.Cars.Commands;
 
-public record UpdateCarCommand : IRequest<Car?>
+public record UpdateCarCommand : IRequest<Either<CarException, Car>>
 {
     public required Guid CarId { get; init; }
     public required string Vin { get; init; }
@@ -17,31 +20,54 @@ public record UpdateCarCommand : IRequest<Car?>
 }
 
 public class UpdateCarCommandHandler(ICarRepository carRepository)
-    : IRequestHandler<UpdateCarCommand, Car?>
+    : IRequestHandler<UpdateCarCommand, Either<CarException, Car>>
 {
-    public async Task<Car?> Handle(UpdateCarCommand request, CancellationToken cancellationToken)
+    public async Task<Either<CarException, Car>> Handle(
+        UpdateCarCommand request,
+        CancellationToken cancellationToken)
     {
-        var car = await carRepository.GetById(request.CarId, cancellationToken);
-        if (car is null)
+        var carId = new CarId(request.CarId);
+        var car = await carRepository.GetById(carId, cancellationToken);
+
+        return await car.MatchAsync(
+            c => CheckDuplicates(c.Id, request.Vin, cancellationToken)
+                .BindAsync(_ => UpdateEntity(c, request, cancellationToken)),
+            () => new CarNotFoundException(carId));
+    }
+
+    private async Task<Either<CarException, Unit>> CheckDuplicates(
+        CarId currentCarId,
+        string vin,
+        CancellationToken cancellationToken)
+    {
+        var car = await carRepository.GetByVin(vin, cancellationToken);
+
+        return car.Match<Either<CarException, Unit>>(
+            c => c.Id == currentCarId ? Unit.Default : new CarAlreadyExistsException(c.Id),
+            () => Unit.Default);
+    }
+
+    private async Task<Either<CarException, Car>> UpdateEntity(
+        Car car,
+        UpdateCarCommand request,
+        CancellationToken cancellationToken)
+    {
+        try
         {
-            return null;
-        }
+            car.UpdateDetails(
+                request.Vin,
+                request.Brand,
+                request.Model,
+                request.Year,
+                request.Price,
+                request.FuelType,
+                request.IsSold);
 
-        var carWithSameVin = await carRepository.GetByVin(request.Vin, cancellationToken);
-        if (carWithSameVin is not null && carWithSameVin.Id != request.CarId)
+            return await carRepository.Update(car, cancellationToken);
+        }
+        catch (Exception exception)
         {
-            throw new ArgumentException($"Car with VIN '{request.Vin}' already exists");
+            return new CarUnhandledException(car.Id, exception);
         }
-
-        car.UpdateDetails(
-            request.Vin,
-            request.Brand,
-            request.Model,
-            request.Year,
-            request.Price,
-            request.FuelType,
-            request.IsSold);
-
-        return await carRepository.Update(car, cancellationToken);
     }
 }
